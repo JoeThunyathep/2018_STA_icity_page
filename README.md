@@ -1,1 +1,5 @@
-2018_STA_icity_page
+# HFT i_city SensorThings API Demo
+## usage:
+
+## Created by:
+Joe Thunyathep Santhanavanich

@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <!-- Use correct character set. -->
+    <meta charset="utf-8">
+    <!-- Tell IE to use the latest, best version (or Chrome Frame if pre-IE11). -->
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1">
+    <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no">
+
+    <title>STA Demo</title>
+
+    <!-- Uncomment for add the script from the HTTP source  -->
+    <!-- <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+    <script src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.9.2/jquery-ui.min.js"></script> 
+    <link href='http://code.jquery.com/ui/1.9.2/themes/base/jquery-ui.css' rel='stylesheet' type='text/css' />
+    <link href='http://fonts.googleapis.com/css?family=Lato:400,700' rel='stylesheet' type='text/css'>-->
+
+    <!-- add the JQuery locally -->
+    <script src="./code/jquery-ui/js/jquery-1.8.3.js"></script>
+    <script src="./code/jquery-ui/js/jquery-ui-1.9.2.custom.min.js"></script>
+    <link href='./code/jquery-ui/css/ui-darkness/jquery-ui-1.9.2.custom.css' rel='stylesheet' type='text/css' />
+    <link href='./code/LatoCSS.css' rel='stylesheet' type='text/css'>
+    <!-- add the Highchart source locally -->
+    <script src="./code/hc/highcharts.js"></script>
+    <script src="./code/hc/modules/series-label.js"></script>
+    <script src="./code/hc/modules/exporting.js"></script>
+    <script src="./code/hc/js/themes/grid-light.js"></script>
+    <!-- add the JStat -->
+    <script src="./code/jstat.min.js"></script>
+    <!-- add the data table -->
+    <link rel="stylesheet" type="text/css" href="./code/DataTables/datatables.min.css" />
+    <script type="text/javascript" src="./code/DataTables/datatables.min.js"></script>
+</head>
+
+<body>
+    <h1>SensorThings API - HFT Demo</h1>
+    <div>
+        <strong>Select the Datastream</strong>
+    </div>
+    <div class="nowrap" id="CesiumStyleChoice">
+        <select id="Datastream Selection">
+            <option value="op1"> Out-Temperature Aula (Datastream ID: 1) </option>
+            <option value="op2"> option 2 </option>
+            <option value="op3"> option 3 </option>
+        </select>
+    </div>
+    <div class="nowrap" id="SelectDate">
+        <strong>Select the Date (From - To)</strong>
+        <br>
+        <input type="text" id="dateSelector" style='width:80px'>
+        <input type="text" id="dateSelectorTo" style='width:80px'>
+        <br>
+        <button id="submitDate">Draw Chart</button>
+        <button id="submitAggregation">Aggregation Processing</button>
+        <button id="drawTable">Draw Table</button>
+        <button id="clearDataTable">Clear Table</button>
+        <br> Remark: This app-version limits at 100 datastreams or around 4 days)
+    </div>
+    <div class="backdrop" id="HightChartContainer" draggable="true"> [Chart output here ...]
+    </div>
+    <div class="nowrap" id="aggregationOut">
+        <span>
+            <strong>Aggregation Output</strong>
+        </span>
+        <br> Min :
+        <span id="Min_Val"></span>
+        <br> Max :
+        <span id="Max_Val"></span>
+        <br> Sum :
+        <span id="Sum_Val"></span>
+        <br> Mean :
+        <span id="Mean_Val"></span>
+        <br> SD :
+        <span id="SD_Val"></span>
+    </div>
+    <div>
+        <table id="tableArea" class="display" width="100%"></table>
+    </div>
+    <script>
+        var dateSelected, selectedYearStr, selectedMonthStr, selectedDateStr;
+        var dateSelectedTo, selectedYearStrTo, selectedMonthStrTo, selectedDateStrTo;
+        var ds_id;
+        $(document).ready(function () {
+            //var Defdate = new Date('2017-11-22');
+            $("#dateSelector").datepicker({
+                minDate: new Date(2015, 12, 1),
+                maxDate: "+12D",
+                changeMonth: true,
+                changeYear: true,
+                yearRange: '2016:2017',
+            });
+            $("#dateSelectorTo").datepicker({
+                minDate: new Date(2015, 12, 2),
+                maxDate: "+12D",
+                changeMonth: true,
+                changeYear: true,
+                yearRange: '2016:2017',
+            });
+            $("#dateSelector").datepicker("option", "dateFormat", "yy-mm-dd");
+            $("#dateSelector").datepicker("option", "showAnim", "slideDown");
+            $("#dateSelector").datepicker().datepicker("setDate", new Date('2015-12-1'));
+            $("#dateSelectorTo").datepicker("option", "dateFormat", "yy-mm-dd");
+            $("#dateSelectorTo").datepicker("option", "showAnim", "slideDown");
+            $("#dateSelectorTo").datepicker().datepicker("setDate", new Date('2015-12-2'));
+            //jquery for Time selector from ...
+            //Add From - To Time for drawing Highchart
+            $("#submitDate").click(function () {
+                // read variable from the user - selected value
+                dateSelected = $("#dateSelector").val();
+                dateSelectedTo = $("#dateSelectorTo").val();
+                var date_isoFr = dateSelected + "T00:00:00.000Z";
+                var date_isoTo = dateSelectedTo + "T00:00:00.000Z";
+                ds_id = 1;
+
+                if (dateSelected === "") {
+                    alert("Please select date.");
+                } else {
+                    selectedYearStr = dateSelected.split("-")[0] * 1;
+                    selectedMonthStr = dateSelected.split("-")[1] * 1;
+                    selectedDateStr = dateSelected.split("-")[2] * 1;
+                    selectedYearStrTo = dateSelectedTo.split("-")[0] * 1;
+                    selectedMonthStrTo = dateSelectedTo.split("-")[1] * 1;
+                    selectedDateStrTo = dateSelectedTo.split("-")[2] * 1;
+                    // Request for the data from STA server
+                    // var requestedData = GenSerieData(selectedDateStr, selectedDateStrTo, selectedMonthStr,selectedMonthStrTo, "1");
+                    var requestedData = GenSerieDataN(date_isoFr, date_isoTo, ds_id);
+                    // GenSerieData (Date From, Date To, Month)
+
+                    setTimeout(function cb() {
+                        drawChart(requestedData[0], date_isoFr, date_isoTo, ds_id);
+                    }, 500);
+                    // Timeout is needed to wait for the font of
+                }
+            });
+            $("#drawTable").click(function () {
+                $('#tableArea').DataTable({
+                    data: resultRaw,
+                    columns: [
+                        { title: "Time-ISO" },
+                        { title: "Data" }
+                    ]
+                });
+            });
+            //Set button function to clear the table
+            $("#clearDataTable").click(function () {
+                var table = $('#tableArea').DataTable();
+                table
+                    .clear()
+                    .destroy();
+                //document.getElementById("tableArea").outerHTML = "";
+            });
+            // Aggregation function!
+            $("#submitAggregation").click(function () {
+                dateSelected = $("#dateSelector").val();
+                dateSelectedTo = $("#dateSelectorTo").val();
+                var date_isoFr = dateSelected + "T00:00:00.000Z";
+                var date_isoTo = dateSelectedTo + "T00:00:00.000Z";
+                ds_id = 1;
+                if (dateSelected === "") {
+                    alert("Please select date.");
+                } else {
+                    selectedYearStr = dateSelected.split("-")[0] * 1;
+                    selectedMonthStr = dateSelected.split("-")[1] * 1;
+                    selectedDateStr = dateSelected.split("-")[2] * 1;
+                    // Request for the data from STA server
+                    // var requestedData = GenSerieData(selectedDateStr, selectedDateStrTo, selectedMonthStr,selectedMonthStrTo, "1");
+                    var requestedData = GenSerieDataN(date_isoFr, date_isoTo, ds_id);
+                    // GenSerieData (Date From, Date To, Month)
+                    setTimeout(function cb() {
+                        console.log("Processing Aggregation using JStat.js ...");
+                        document.getElementById('Mean_Val').innerHTML = jStat.mean(requestedData[1]).toFixed(3) + " Celsius";
+                        document.getElementById('SD_Val').innerHTML = jStat.stdev(requestedData[1]).toFixed(3) + " Celsius";
+                        document.getElementById('Min_Val').innerHTML = jStat.min(requestedData[1]).toFixed(3) + " Celsius";
+                        document.getElementById('Max_Val').innerHTML = jStat.max(requestedData[1]).toFixed(3) + " Celsius";
+                        document.getElementById('Sum_Val').innerHTML = jStat.sum(requestedData[1]).toFixed(3) + " Celsius";
+                    }, 500);
+                    // Timeout is needed to wait for the font of
+                }
+            });
+
+
+
+        });
+
+
+
+
+    </script>
+    <script src="DrawHighchart.js"></script>
+</body>
+
+</html>
